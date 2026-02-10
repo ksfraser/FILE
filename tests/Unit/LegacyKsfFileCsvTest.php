@@ -11,7 +11,7 @@ final class LegacyKsfFileCsvTest extends TestCase
     public function testReadCsvEntireWithHeader(): void
     {
         require_once __DIR__ . '/../../src/Ksfraser/FILE/class.ksf_file.php';
-        require_once __DIR__ . '/../../src/Ksfraser/FILE/class.ksf_file_csv.php';
+        require_once __DIR__ . '/../../src/Ksfraser/FileLegacy/class.ksf_file_csv.php';
 
         $dir = sys_get_temp_dir() . '/file_legacy_' . bin2hex(random_bytes(6));
         mkdir($dir);

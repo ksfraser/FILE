@@ -10,7 +10,7 @@ final class LegacyKsfFileTest extends TestCase
 {
     public function testOpenForWriteWriteLineAndReadBack(): void
     {
-        require_once __DIR__ . '/../../src/Ksfraser/FILE/class.ksf_file.php';
+        require_once __DIR__ . '/../../src/Ksfraser/FileLegacy/class.ksf_file.php';
 
         $dir = sys_get_temp_dir() . '/file_legacy_' . bin2hex(random_bytes(6));
         mkdir($dir);
@@ -32,7 +32,7 @@ final class LegacyKsfFileTest extends TestCase
 
     public function testWriteArrayToCsvThrowsGuidanceException(): void
     {
-        require_once __DIR__ . '/../../src/Ksfraser/FILE/class.ksf_file.php';
+        require_once __DIR__ . '/../../src/Ksfraser/FileLegacy/class.ksf_file.php';
 
         $dir = sys_get_temp_dir() . '/file_legacy_' . bin2hex(random_bytes(6));
         mkdir($dir);

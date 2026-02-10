@@ -1,7 +1,15 @@
 <?php
 
-require_once( 'class.ksf_file.php' );
+require_once __DIR__ . '/class.ksf_file.php';
 
+if( ! class_exists( '\\Ksfraser\\File\\KsfFileCsv', false ) )
+{
+	require_once __DIR__ . '/../File/KsfFileCsv.php';
+}
+
+/**
+ * @deprecated Prefer format-aware services under Ksfraser\\File\\ (e.g. Ksfraser\\File\\FileIO with CsvFormat).
+ */
 class ksf_file_csv extends ksf_file
 {
 	protected $size;
@@ -16,6 +24,16 @@ class ksf_file_csv extends ksf_file
 	protected $escapechar;	//!<char
 	protected $deliminater;	//!<char
 	protected $fieldcount;	//!<int
+
+	/**
+	 * @return \Ksfraser\File\KsfFileCsv
+	 */
+	protected function get_psr_file()
+	{
+		/** @var \Ksfraser\File\KsfFileCsv $psr */
+		$psr = parent::get_psr_file();
+		return $psr;
+	}
 	/**//******************************************
 	* Setup the CSV reading class file
 	*
@@ -49,46 +67,28 @@ class ksf_file_csv extends ksf_file
 	*******************************************************/
 	/*@array@*/function readcsv_line()
 	{
-		if( !isset( $this->fp )  )
-			throw new Exception( __CLASS__ . " required field not set: fp" );
-		if( ! isset( $this->size )  )
-			throw new Exception( __CLASS__ . " required field not set: size" );
-		if( ! isset( $this->separator ) )
-			throw new Exception( __CLASS__ . " required field not set: separator" );
-		if( $this->b_header AND !$this->grabbed_header )
-		{
-			//fgetcsv( resource $stream, ?int $length = null, string $separator = ",", string $enclosure = "\"", string $escape = "\\"): array|false
-			$this->headerline = fgetcsv( $this->fp, $this->size, $this->separator, $this->enclosure, $this->escapechar );
-			$this->grabbed_header = true;
-		}
-		if( ! $this->b_header )
-			$this->headerline = '';
-		else
-		{
-		}
-		$line = fgetcsv( $this->fp, $this->size, $this->separator );
-		if( ! $this->fieldcount )
-		{
-			$this->set( "fieldcount", count( $line ) );
-		}
-		$this->linecount++;
+		/** @var \Ksfraser\File\KsfFileCsv $psr */
+		$psr = $this->get_psr_file();
+		$line = $psr->readcsv_line();
+		$this->headerline = $psr->getHeaderLine();
+		$this->linecount = $psr->getLineCount();
 		return $line;
 	}
 	function readcsv_entire()
 	{
-		if( ! isset( $this->fp ) )
-			try {
+		try {
+			/** @var \Ksfraser\File\KsfFileCsv $psr */
+			$psr = $this->get_psr_file();
+			if( ! isset( $this->fp ) )
 				$this->open();
-			} catch( Exception $e )
-			{
-				display_notification( $e->getMessage() );
-				$this->lines = array();
-				return;
-			}
-		while( $line = $this->readcsv_line() )
-		{
-			$this->lines[] = $line;
-			$this->linecount++;
+			$psr->readcsv_entire();
+			$this->lines = $psr->getLines();
+			$this->linecount = $psr->getLineCount();
+			$this->headerline = $psr->getHeaderLine();
+		} catch( Exception $e ) {
+			display_notification( $e->getMessage() );
+			$this->lines = array();
+			return;
 		}
 	}
         /**//***************************************
@@ -101,17 +101,23 @@ class ksf_file_csv extends ksf_file
         *********************************************/
         function write_array_to_csv( $arr )
         {
-                if( !isset( $this->fp ) )
-		{
-                        throw new Exception( "Fileponter not set", KSF_FILE_PTR_NOT_SET );
-		}
-		if( ! $this->bOpenedWrite )
-		{
-                        throw new Exception( "Fileponter was not opened for writing", KSF_FILE_READONLY );
-		}
-                fputcsv( $this->fp, $arr, $this->deliminater, $this->enclosure );
-                //fputcsv( $this->fp, $arr, $this->deliminater, $this->enclosure, $this->escape_char );
+				if( !isset( $this->fp ) )
+				{
+						throw new Exception( "Fileponter not set", KSF_FILE_PTR_NOT_SET );
+				}
+				if( ! $this->bOpenedWrite )
+				{
+						throw new Exception( "Fileponter was not opened for writing", KSF_FILE_READONLY );
+				}
+				/** @var \Ksfraser\File\KsfFileCsv $psr */
+				$psr = $this->get_psr_file();
+				$psr->write_array_to_csv( $arr );
         }
+
+	protected function create_psr_file()
+	{
+		return new \Ksfraser\File\KsfFileCsv( (string) $this->filename, (int) $this->size, (string) $this->separator, (bool) $this->b_header, (bool) $this->b_skip_header, (string) $this->path );
+	}
 
 
 }

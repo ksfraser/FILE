@@ -1,7 +1,17 @@
 <?php
 
-require_once( 'class.ksf_file.php' );
+require_once __DIR__ . '/class.ksf_file.php';
 require_once( 'class.ksf_ui.php' );
+
+if( ! class_exists( '\\Ksfraser\\File\\KsfFileCsv', false ) )
+{
+	require_once __DIR__ . '/../File/KsfFileCsv.php';
+}
+if( ! class_exists( '\\Ksfraser\\File\\ResourceWriter', false ) )
+{
+	require_once __DIR__ . '/../File/Exception/FileException.php';
+	require_once __DIR__ . '/../File/ResourceWriter.php';
+}
 
 /*******************************************************//**
  *
@@ -9,6 +19,9 @@ require_once( 'class.ksf_ui.php' );
  * Inherits the path of company/images for destination directory
  *
  * **********************************************************/
+/**
+ * @deprecated Upload handling is application/framework-specific; prefer composing upload parsing with Ksfraser\\File\\ readers.
+ */
 class ksf_file_upload extends ksf_file
 {
 	protected $upload_ok;
@@ -35,10 +48,8 @@ class ksf_file_upload extends ksf_file
 	}
 	function open()
 	{
-		$this->validateVariables();
-		$this->fp = fopen( $this->path . '/' . $this->filename, 'w' );
-		if( !isset( $this->fp ) )
-			throw new Exception( "Unable to set Fileponter when trying to open ". $this->filename );	
+		// Delegate to the namespaced implementation via the legacy bridge.
+		$this->open_for_write();
 	}
 	function process_files()
 	{
@@ -114,10 +125,11 @@ class ksf_file_upload extends ksf_file
 	{
 		if( $type == 'csv' )
 		{
-			$fc =  new ksf_file_csv( $filename, $size, $separator );
-			$fc->set( 'path', "", false );
-			$fc->readcsv_entire();	//sets lines and linecount
-			$this->data = array( 'count' => $fc->get( 'linecount' ), 'header' => $fc->get( 'headerline') , 'data' => $fc->get( 'lines' ) );
+			$fc = new \Ksfraser\File\KsfFileCsv( (string) $filename, (int) $size, (string) $separator, false, false, '' );
+			$fc->open();
+			$fc->readcsv_entire();
+			$fc->close();
+			$this->data = array( 'count' => $fc->getLineCount(), 'header' => $fc->getHeaderLine() , 'data' => $fc->getLines() );
 		}
 		return $this->data;
 	}
@@ -150,7 +162,8 @@ class ksf_file_upload extends ksf_file
 	}
 	function file_put_contents( $content )
 	{
-		file_put_contents( $this->path . "/" . $this->filename, $content );
+		$writer = new \Ksfraser\File\ResourceWriter();
+		$writer->writeBytes( $this->path . "/" . $this->filename, (string) $content );
 		$this->filepaths_array[] = $this->path . "/" . $this->filename;
 		$this->files_array[] = $this->filename;
 	}

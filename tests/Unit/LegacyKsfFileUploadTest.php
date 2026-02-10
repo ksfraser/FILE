@@ -12,7 +12,7 @@ final class LegacyKsfFileUploadTest extends TestCase
     {
         require_once __DIR__ . '/../stubs/class.ksf_ui.php';
         require_once __DIR__ . '/../../src/Ksfraser/FILE/class.ksf_file.php';
-        require_once __DIR__ . '/../../src/Ksfraser/FILE/class.ksf_file_upload.php';
+        require_once __DIR__ . '/../../src/Ksfraser/FileLegacy/class.ksf_file_upload.php';
 
         $dir = sys_get_temp_dir() . '/file_legacy_' . bin2hex(random_bytes(6));
         mkdir($dir);

@@ -4,6 +4,15 @@ require_once( 'class.fa_origin.php' );
 //require_once( 'class.origin.php' );
 //require_once( 'defines.inc.php' );
 
+// Legacy bridge: allow using the namespaced implementation even when
+// this legacy class is loaded via manual requires (without Composer autoload).
+if( ! class_exists( '\\Ksfraser\\File\\KsfFile', false ) )
+{
+	require_once __DIR__ . '/../File/Defines.php';
+	require_once __DIR__ . '/../File/Exception/FileException.php';
+	require_once __DIR__ . '/../File/KsfFile.php';
+}
+
 /*
 if( ! defined( 'company_path' ) )
 {
@@ -14,6 +23,9 @@ if( ! defined( 'company_path' ) )
 }
 */
 
+/**
+ * @deprecated Use namespaced classes under Ksfraser\\File\\ (e.g. Ksfraser\\File\\KsfFile, Ksfraser\\File\\FileIO).
+ */
 class ksf_file extends fa_origin
 {
 	protected $fp;	//!< @var handle File Pointer
@@ -32,6 +44,7 @@ class ksf_file extends fa_origin
         protected $escape_char; //!< fputcsv control value
   **/ 
 	protected $bOpenedWrite;	//!<bool opened for writing.
+	protected $psr_file;	//!< \Ksfraser\File\KsfFile delegate
         /**//*****************************************************
         * Construct the File handling class
         *
@@ -91,12 +104,11 @@ class ksf_file extends fa_origin
 	******************************/
 	function unlink( $filename = null )
 	{
-		if( null !== $filename )
-		{
-			return unlink( $filename );
-		}
-		else
-		{
+		try {
+			return $this->get_psr_file()->unlink( $filename );
+		} catch( Exception $e ) {
+			if( null !== $filename )
+				return unlink( $filename );
 			return unlink( $this->filename );
 		}
 	}
@@ -118,28 +130,38 @@ class ksf_file extends fa_origin
         ***********************************************************/
 	function open()
 	{
-		$this->validateVariables();
-		if( strlen( $this->path ) > 1 )
-			$this->fp = fopen( $this->path . '/' . $this->filename, 'r' );
-		else
-			$this->fp = fopen( $this->filename, 'r' );
-		if( !isset( $this->fp ) )
-                        throw new Exception( "Unable to set Fileponter when trying to open ". $this->filename, KSF_FILE_OPEN_FAILED );
+		try {
+			$psr = $this->get_psr_file();
+			$psr->open();
+			$this->fp = $psr->getHandle();
+			$this->filepath = $psr->getFilePath();
+			$this->filesize = file_exists( $this->filepath ) ? filesize( $this->filepath ) : 0;
+		} catch( Exception $e ) {
+			throw new Exception( "Unable to set Fileponter when trying to open ". $this->filename . ': ' . $e->getMessage(), KSF_FILE_OPEN_FAILED );
+		}
 	}
 	function open_for_write()
 	{
-		$this->validateVariables();
-		$this->fp = fopen( $this->path . '/' . $this->filename, 'w' );
-		if( !isset( $this->fp ) )
-			throw new Exception( "Unable to set Fileponter when trying to open ". $this->filename, KSF_FILE_OPEN_FAILED );	
-		$this->bOpenedWrite = true;
+		try {
+			$psr = $this->get_psr_file();
+			$psr->open_for_write();
+			$this->fp = $psr->getHandle();
+			$this->filepath = $psr->getFilePath();
+			$this->bOpenedWrite = true;
+		} catch( Exception $e ) {
+			throw new Exception( "Unable to set Fileponter when trying to open ". $this->filename . ': ' . $e->getMessage(), KSF_FILE_OPEN_FAILED );	
+		}
 	}
 	function close()
 	{
 		if( !isset( $this->fp ) )
 			throw new Exception( "Trying to close a Fileponter that isn't set", KSF_FILE_PTR_NOT_SET );
-		fflush( $this->fp );
-		fclose( $this->fp );
+		try {
+			$this->get_psr_file()->close();
+		} catch( Exception $e ) {
+			fflush( $this->fp );
+			fclose( $this->fp );
+		}
 		$this->fp = null;
 	}
 	/**//***************************************
@@ -152,10 +174,9 @@ class ksf_file extends fa_origin
 	*********************************************/
         function write_chunk( $line )
         {
-                if( !isset( $this->fp ) )
-                        throw new Exception( "Fileponter not set", KSF_FILE_PTR_NOT_SET );
-                fwrite( $this->fp, $line );
-                fflush( $this->fp );
+					if( !isset( $this->fp ) )
+							throw new Exception( "Fileponter not set", KSF_FILE_PTR_NOT_SET );
+					$this->get_psr_file()->write_chunk( $line );
         }
 	/**//***************************************
 	*
@@ -167,10 +188,9 @@ class ksf_file extends fa_origin
 	*********************************************/
         function write_line( $line )
         {
-                if( !isset( $this->fp ) )
-                        throw new Exception( "Fileponter not set", KSF_FILE_PTR_NOT_SET );
-                fwrite( $this->fp, $line . "\r\n" );
-                fflush( $this->fp );
+					if( !isset( $this->fp ) )
+							throw new Exception( "Fileponter not set", KSF_FILE_PTR_NOT_SET );
+					$this->get_psr_file()->write_line( $line );
         }
 	/**//***************************************
 	*
@@ -195,11 +215,7 @@ class ksf_file extends fa_origin
 	*********************************************/
 	/*@bool@*/function make_path()
 	{
-		$this->validateVariables();
-		if( !$this->pathExists() )
-			mkdir( $this->path );
-		//Did we succeed?
-		return $this->pathExists();
+		return $this->get_psr_file()->make_path();
 	}
 	/**//***************************************
 	*
@@ -211,8 +227,7 @@ class ksf_file extends fa_origin
 	*********************************************/
 	/*@bool@*/function pathExists()
 	{
-		$this->validateVariables();	
-		return is_dir( $this->path );
+		return $this->get_psr_file()->pathExists();
 	}
 	/***************************************************************
 	 * Check for the existance of a file
@@ -222,16 +237,7 @@ class ksf_file extends fa_origin
 	 * *************************************************************/
 	/*@bool@*/function fileExists()
 	{
-		$this->validateVariables();
-		if( strlen( $this->path ) > 1 )
-			$file = $this->path . '/' . $this->filename;
-		else
-			$file = $this->filename;
-		$exists = file_exists( $file );
-		if ( !is_file( $file ) || !is_readable( $file ) ) {
-           		return false;
-        	}
-		return $exists;
+		return $this->get_psr_file()->fileExists();
 	}
 	function validateVariables()
 	{
@@ -248,11 +254,11 @@ class ksf_file extends fa_origin
 	********************************************************************/
 	function getFileContents()
 	{
-		if( ! isset( $this->filename ) )
-		{
-			throw new Exception( "Filename not set.  Can't read an unspecified file", KSF_FIELD_NOT_SET );
+		try {
+			$this->file_contents = $this->get_psr_file()->getFileContents();
+		} catch( Exception $e ) {
+			throw new Exception( $e->getMessage(), KSF_FIELD_NOT_SET );
 		}
-		$this->file_contents = file_get_contents($this->filename);
 	}
 	/**//***************************************************************
 	* Grab a filename from the webserver after an upload.
@@ -262,11 +268,13 @@ class ksf_file extends fa_origin
 	********************************************************************/
 	function uploadFileName( $id = 0 )
 	{
-		if( ! isset( $_FILES ) )
-		{
-			throw new Exception( "Can't set a filename when one not passed in", KSF_VAR_NOT_SET );
+		try {
+			$this->get_psr_file()->uploadFileName( (int) $id );
+			$this->filepath = $this->get_psr_file()->getFilePath();
+			$this->filesize = file_exists( $this->filepath ) ? filesize( $this->filepath ) : 0;
+		} catch( Exception $e ) {
+			throw new Exception( $e->getMessage(), KSF_VAR_NOT_SET );
 		}
-		$this->filename = $_FILES['files']['tmp_name'][$id];
 	}
 	/**//*********************************************************************
 	* Read the entire file using fread
@@ -276,16 +284,12 @@ class ksf_file extends fa_origin
 	*************************************************************************/
 	function fread()
 	{
-                if( ! isset( $this->fp ) )
-                {
-                        throw new Exception( "File Pointer not set, can't read", KSF_FILED_NOT_SET );
-                }
-                if( ! isset( $this->filesize ) )
-                {
-                        throw new Exception( "File Size not set", KSF_FILED_NOT_SET );
-                }
-                $this->filecontents = fread( $this->fp, $this->filesize );
-                return $this->filecontents;
+				if( ! isset( $this->fp ) )
+				{
+						throw new Exception( "File Pointer not set, can't read", KSF_FILED_NOT_SET );
+				}
+				$this->filecontents = $this->get_psr_file()->fread();
+				return $this->filecontents;
 	}
 	/**//********************************************************************************
      	* Remove the BOM (Byte Order Mark) from the beginning of the import row if it exists
@@ -313,21 +317,23 @@ class ksf_file extends fa_origin
      	*/
     	function getNumberOfLinesInfile()
     	{
-        	$lineCount = 0;
-        	if ($this->fp )
-        	{
-            		rewind($this->_fp);
-            		while( !feof($this->_fp) )
-            		{
-                		if( fgets($this->_fp) !== FALSE)
-                    			$lineCount++;
-            		}
-            		//Reset the fp to after the bom if applicable.
-            		$this->setFpAfterBOM();
-        	}
-		$this->linecount = $lineCount;
-        	return $lineCount;
+			if( ! isset( $this->fp ) )
+				return 0;
+			$this->linecount = $this->get_psr_file()->getNumberOfLinesInfile();
+			return $this->linecount;
     	}
+
+	protected function create_psr_file()
+	{
+		return new \Ksfraser\File\KsfFile( (string) $this->filename, (string) $this->path );
+	}
+
+	protected function get_psr_file()
+	{
+		if( ! isset( $this->psr_file ) )
+			$this->psr_file = $this->create_psr_file();
+		return $this->psr_file;
+	}
 /*
         fwrite() - Binary-safe file write
         fsockopen() - Open Internet or Unix domain socket connection

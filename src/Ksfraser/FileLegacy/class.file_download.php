@@ -2,6 +2,16 @@
 
 require_once( 'class.rest_interface.php' );
 
+if( ! class_exists( '\\Ksfraser\\File\\ResourceReader', false ) )
+{
+	require_once __DIR__ . '/../File/Exception/FileException.php';
+	require_once __DIR__ . '/../File/ResourceReader.php';
+	require_once __DIR__ . '/../File/ResourceWriter.php';
+}
+
+/**
+ * @deprecated Prefer injecting a downloader (URL reader) and format resolver under Ksfraser\\File\\.
+ */
 class file_download extends rest_interface
 {
 	protected $filename;
@@ -33,12 +43,13 @@ class file_download extends rest_interface
 		else
 			return FALSE;
 		$this->build_url();
-		if( file_put_contents( $this->saveto, file_get_contents( $this->url ) ) )
-		{
+		try {
+			$reader = new \Ksfraser\File\ResourceReader();
+			$writer = new \Ksfraser\File\ResourceWriter();
+			$bytes = $reader->readBytes( $this->url );
+			$writer->writeBytes( $this->saveto, $bytes );
 			return TRUE;
-		}
-		else
-		{
+		} catch( Exception $e ) {
 			return FALSE;
 		}
 	}
