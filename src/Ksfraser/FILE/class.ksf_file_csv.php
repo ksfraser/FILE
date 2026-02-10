@@ -14,6 +14,7 @@ class ksf_file_csv extends ksf_file
 	protected $headerline;
 	protected $enclosure;	//!<char
 	protected $escapechar;	//!<char
+	protected $deliminater;	//!<char
 	protected $fieldcount;	//!<int
 	/**//******************************************
 	* Setup the CSV reading class file
@@ -25,17 +26,18 @@ class ksf_file_csv extends ksf_file
 	* @param bool b_skip_header skip processing the header
 	* @return none
 	***********************************************/
-	function __construct( $filename, $size, $separator, $b_header = false, $b_skip_header = false )
+	function __construct( $filename, $size, $separator, $b_header = false, $b_skip_header = false, $path = null )
 	{
-		parent::__construct( $filename );
+		parent::__construct( $filename, $path );
 		$this->size = $size;
 		$this->separator = $separator;
 		$this->linecount = 0;
 		$this->b_header = $b_header;
 		$this->b_skip_header = $b_skip_header;
 		$this->grabbed_header = false;
-		$this->enclosure = null;
-		$this->escapechar = null;
+		$this->enclosure = '"';
+		$this->escapechar = '\\';
+		$this->deliminater = $separator;
 		$this->fieldcount = 0;
 		$this->linecount = 0;
 	}

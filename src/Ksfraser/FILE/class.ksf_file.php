@@ -57,15 +57,16 @@ class ksf_file extends fa_origin
                 }
                 else
                 {
-                        $path = dirname();
+					$path = (string) getcwd();
+					$this->path = $path;
                 }
 		$this->bDeleteFile = false;
 
-                if( strlen( $this->path ) > 1 )
-                        $this->filepath = $this->path . '/' . $this->filename;
-                else
-                        $this->filepath = $this->filename;
-                $this->filesize = filesize( $this->filepath );
+				if( strlen( $this->path ) > 1 )
+					$this->filepath = $this->path . '/' . $this->filename;
+				else
+					$this->filepath = $this->filename;
+				$this->filesize = file_exists( $this->filepath ) ? filesize( $this->filepath ) : 0;
 	}
 	function __destruct()
 	{

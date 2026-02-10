@@ -53,7 +53,7 @@ class file_download extends rest_interface
 		{
                 	$this->url .=  '?'  . $this->queryval;
 		}
-		if( isset( $this->key ) AND strlen( $this->key > 2 ) )
+		if( isset( $this->key ) AND strlen( $this->key ) > 2 )
 		{
 			if( strlen( $this->queryval ) > 0 )
 			{
@@ -100,7 +100,7 @@ class file_download extends rest_interface
 		if( is_string( $msg ) )
 		{
        			$this->tell_eventloop( $this, 'NOTIFY_LOG_DEBUG', 'Setting query ' . $msg );
-			$this->query = $msg;
+			$this->queryval = $msg;
 		}
 	}
 	function download_filename( $caller, $msg )
