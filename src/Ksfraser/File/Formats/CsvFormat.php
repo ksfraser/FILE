@@ -26,7 +26,9 @@ final class CsvFormat implements FormatInterface
         $hasHeader = array_key_exists('header', $options) ? (bool) $options['header'] : false;
 
         if (class_exists('League\\Csv\\Reader')) {
-            $reader = \League\Csv\Reader::createFromString($bytes);
+            $reader = method_exists('League\\Csv\\Reader', 'fromString')
+                ? \League\Csv\Reader::fromString($bytes)
+                : \League\Csv\Reader::createFromString($bytes);
             $reader->setDelimiter($separator);
             $reader->setEnclosure($enclosure);
             if (method_exists($reader, 'setEscape')) {
@@ -81,7 +83,9 @@ final class CsvFormat implements FormatInterface
         $enclosure = array_key_exists('enclosure', $options) ? (string) $options['enclosure'] : '"';
 
         if (class_exists('League\\Csv\\Writer')) {
-            $writer = \League\Csv\Writer::createFromString('');
+            $writer = method_exists('League\\Csv\\Writer', 'fromString')
+                ? \League\Csv\Writer::fromString('')
+                : \League\Csv\Writer::createFromString('');
             $writer->setDelimiter($separator);
             $writer->setEnclosure($enclosure);
 
